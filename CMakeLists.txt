@@ -1,0 +1,2 @@
+MYSQL_ADD_PLUGIN(innodb_buffer_page_older_timestamp innodb_buffer_page_older_timestamp.cc
+  MODULE_ONLY MODULE_OUTPUT_NAME "innodb_buffer_page_older_timestamp")
