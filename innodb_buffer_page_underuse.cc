@@ -11,10 +11,10 @@
 #include "../../storage/innobase/include/buf0lru.h"
 #include "buf0buf.h"
 
-static struct st_mysql_information_schema ibd_buf_page_older_timestamp_info =
+static struct st_mysql_information_schema ibd_buf_page_underuse =
 	{ MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
-static ST_FIELD_INFO ibd_buf_page_older_timestamp_fields[] = 
+static ST_FIELD_INFO ibd_buf_page_underuse_fields[] = 
 	{
 		{"NAME", 10, MYSQL_TYPE_STRING, 0, 0, 0, 0},
 		{"TIMESTAMP", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
@@ -68,7 +68,7 @@ static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_p
 	return status;
 }
 
-static int ibd_buf_page_older_timestamp_fill_table(THD *thd, TABLE_LIST *tables, Item *cond)
+static int ibd_buf_page_underuse_fill_table(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 	TABLE *table = tables->table;
 	
@@ -85,23 +85,23 @@ static int ibd_buf_page_older_timestamp_fill_table(THD *thd, TABLE_LIST *tables,
 	return 0;
 }
 
-static int ibd_buf_page_older_timestamp_table_init(void *ptr)
+static int ibd_buf_page_underuse_table_init(void *ptr)
 {
 	ST_SCHEMA_TABLE *schema_table = (ST_SCHEMA_TABLE *)ptr;
-	schema_table->fields_info = ibd_buf_page_older_timestamp_fields;
-	schema_table->fill_table = ibd_buf_page_older_timestamp_fill_table;
+	schema_table->fields_info = ibd_buf_page_underuse_fields;
+	schema_table->fill_table = ibd_buf_page_underuse_fill_table;
 	return 0;
 }
 
 mysql_declare_plugin()
 {
 	MYSQL_INFORMATION_SCHEMA_PLUGIN,
-	&ibd_buf_page_older_timestamp_info,
-	"INNODB_BUFFER_PAGE_OLDER_TIMESTAMP",
+	&ibd_buf_page_underuse,
+	"INNODB_BUFFER_PAGE_UNDERUSE",
 	"lrf141",
-	"Table with detailed timestamp information for the buffer pool",
+	"Table with detailed information for the buffer page in old sublist in buffer pool",
 	PLUGIN_LICENSE_GPL,
-	ibd_buf_page_older_timestamp_table_init,
+	ibd_buf_page_underuse_table_init,
 	NULL,
 	NULL,
 	0x0100,

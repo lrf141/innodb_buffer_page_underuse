@@ -37,5 +37,5 @@ INCLUDE_DIRECTORIES(
 	${CMAKE_SOURCE_DIR}/storage/innobase/handler
 	)
 
-MYSQL_ADD_PLUGIN(innodb_buffer_page_older_timestamp innodb_buffer_page_older_timestamp.cc
-  MODULE_ONLY MODULE_OUTPUT_NAME "innodb_buffer_page_older_timestamp")
+MYSQL_ADD_PLUGIN(innodb_buffer_page_underuse innodb_buffer_page_underuse.cc
+  MODULE_ONLY MODULE_OUTPUT_NAME "innodb_buffer_page_underuse")
