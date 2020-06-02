@@ -17,7 +17,7 @@ static struct st_mysql_information_schema ibd_buf_page_older_timestamp_info =
 static ST_FIELD_INFO ibd_buf_page_older_timestamp_fields[] = 
 	{
 		{"NAME", 10, MYSQL_TYPE_STRING, 0, 0, 0, 0},
-		{"VALUE", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
+		{"TIMESTAMP", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0} // end of field definition
 	};
 
@@ -58,7 +58,7 @@ static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_p
 			continue;
 	}
 
-	tables->table->field[0]->store("name 0", 6, system_charset_info);
+	tables->table->field[0]->store("total size", 6, system_charset_info);
 	tables->table->field[1]->store(lru_len);
 	if (schema_table_store_record(thd, tables->table))
 		status = 1;
@@ -79,18 +79,8 @@ static int ibd_buf_page_older_timestamp_fill_table(THD *thd, TABLE_LIST *tables,
 		buf_pool = buf_pool_from_array(pool_id);
 		status = set_ibd_buf_page_info(thd, tables, buf_pool, pool_id);
 		if (status)
-			break;
+			continue;
 	}
-	
-	table->field[0]->store("Name 1", 6, system_charset_info);
-	table->field[1]->store(1);
-	if (schema_table_store_record(thd, table))
-		return 1;
-
-	table->field[0]->store("Name 2", 6, system_charset_info);
-	table->field[1]->store(2);
-	if (schema_table_store_record(thd, table))
-		return 1;
 
 	return 0;
 }
