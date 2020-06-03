@@ -7,9 +7,11 @@
 #include "sql/table.h"
 #include "sql/field.h"
 #include "mysql/innodb_priv.h"
-//#include "../../storage/innobase/include/ut0mutex.h"
 #include "../../storage/innobase/include/buf0lru.h"
 #include "buf0buf.h"
+
+constexpr auto PAGE_TYPE_BITS = 6;
+constexpr auto PAGE_TYPE_UNKNOWN = FIL_PAGE_TYPE_UNKNOWN;
 
 static struct st_mysql_information_schema ibd_buf_page_underuse =
 	{ MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
@@ -21,39 +23,86 @@ static ST_FIELD_INFO ibd_buf_page_underuse_fields[] =
 		{0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0} // end of field definition
 	};
 
+struct buf_page_info_t {
+	unsigned int pool_id : 32;
+	unsigned int space_id : 32;
+	unsigned int page_type : PAGE_TYPE_BITS;
+	unsigned int num_recs : UNIV_PAGE_SIZE_SHIFT_MAX;
+	unsigned int access_time;
+};
+
+static void ibd_buffer_page_get_underuse_info(const buf_page_t *bpage, ulint pool_id, ulint pos, buf_page_info_t *page_info)
+{
+	BPageMutex *mutex = buf_page_get_mutex(bpage);
+	page_info->access_time = bpage->access_time;	
+	page_info->pool_id = pool_id;
+/*
+	mutex_enter(mutex);
+
+	if (buf_page_in_file(bpage)) {
+		const byte *frame;
+		ulint page_type;
+
+		page_info->space_id = bpage->id.space();
+		page_info->access_time = bpage->access_time;
+
+		switch(buf_page_get_io_fix(bpage)) {
+			case BUF_IO_NONE:
+			case BUF_IO_WRITE:
+			case BUF_IO_PIN:
+				break;
+			case BUF_IO_READ:
+				page_info->page_type = PAGE_TYPE_UNKNOWN;
+			        mutex_exit(mutex);
+				return;	
+		}
+
+		page_type = fil_page_get_type(frame);
+
+	} else {
+		page_info->page_type = PAGE_TYPE_UNKNOWN;
+	}
+	mutex_exit(mutex);
+*/
+}
+
 static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_pool, const ulint pool_id)
 {
 	int status = 0;
-	//buf_pool_info_t *info_buffer;
+	buf_page_info_t info_buffer;
 	buf_page_t *bpage;
 	ulint lru_pos = 0;
 	ulint lru_len;
 
-	// need mutex lock
-	// buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
+	
 	lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 	
 	// need refactoring
-	//info_buffer = (buf_pool_info_t *)my_malloc(PSI_INSTRUMENT_ME, lru_len * sizeof *info_buffer, MYF(MY_WME));
+	//info_buffer = (buf_page_info_t *)my_malloc(PSI_INSTRUMENT_ME, sizeof(info_buffer), MYF(MY_WME));
 	//if (!info_buffer) {
 	//	return 1;
 	//}
 
-	// need refactoring
-	//memset(info_buffer, 0, lru_len * sizeof *info_buffer);
+	memset(&info_buffer, 0, sizeof(info_buffer));
+	
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 	int counter = 0;
 	while(bpage != NULL) {
+		
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
-		lru_pos++;
-
-		char str[126];
-		sprintf(str, "Name %d", counter);
 		counter++;
 		if (counter > 10)
 			break;
+		
+		memset(&info_buffer, 0, sizeof(info_buffer));
+		ibd_buffer_page_get_underuse_info(bpage, pool_id, lru_pos, &info_buffer);	
+		char str[126];
+		sprintf(str, "Name %d", counter);
+		
 		tables->table->field[0]->store(str, strlen(str), system_charset_info);
-		tables->table->field[1]->store(bpage->access_time);
+		tables->table->field[1]->store(info_buffer.access_time);
+		lru_pos++;
 		if (schema_table_store_record(thd, tables->table))
 			continue;
 	}
@@ -63,6 +112,7 @@ static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_p
 	if (schema_table_store_record(thd, tables->table))
 		status = 1;
 
+	mutex_exit(&buf_pool->LRU_list_mutex);
 	//my_free(info_buffer);
 
 	return status;
