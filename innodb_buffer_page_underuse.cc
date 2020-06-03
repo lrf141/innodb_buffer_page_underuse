@@ -7,8 +7,8 @@
 #include "sql/table.h"
 #include "sql/field.h"
 #include "mysql/innodb_priv.h"
-#include "../../storage/innobase/include/buf0lru.h"
 #include "buf0buf.h"
+#include "buf0lru.h"
 
 constexpr auto PAGE_TYPE_BITS = 6;
 constexpr auto PAGE_TYPE_UNKNOWN = FIL_PAGE_TYPE_UNKNOWN;
