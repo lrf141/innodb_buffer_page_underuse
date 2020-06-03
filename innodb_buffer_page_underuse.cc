@@ -41,8 +41,10 @@ static void ibd_buffer_page_get_underuse_info(const buf_page_t *bpage, ulint poo
 
 	mutex_enter(mutex);
 
+	unsigned int page_state = buf_page_get_state(bpage);
+
 	if (buf_page_in_file(bpage)) {
-		byte frame;
+		const byte *frame;
 		ulint page_type;
 
 		page_info->space_id = bpage->id.space();
@@ -59,7 +61,16 @@ static void ibd_buffer_page_get_underuse_info(const buf_page_t *bpage, ulint poo
 				return;	
 		}
 
-		page_type = fil_page_get_type(&frame);
+		if (page_state == BUF_BLOCK_FILE_PAGE) {
+			const buf_block_t *block;
+			block = reinterpret_cast<const buf_block_t *>(bpage);
+			frame = block->frame;
+		} else {
+			ut_ad(bpage->zip.ssize);
+			frame = bpage->zip.data;
+		}
+
+		page_type = fil_page_get_type(frame);
 		page_info->page_type = page_type;
 	} else {
 		page_info->page_type = PAGE_TYPE_UNKNOWN;
