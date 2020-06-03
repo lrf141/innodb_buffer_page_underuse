@@ -28,12 +28,16 @@ static ST_FIELD_INFO ibd_buf_page_underuse_fields[] =
 struct buf_page_info_t {
 	unsigned int pool_id : 32;
 	unsigned int space_id : 32;
-	unsigned int page_type;
+	unsigned int page_type : PAGE_TYPE_BITS;
 	unsigned int num_recs : UNIV_PAGE_SIZE_SHIFT_MAX;
 	unsigned int access_time;
 };
 
-static void ibd_buffer_page_get_underuse_info(const buf_page_t *bpage, ulint pool_id, ulint pos, buf_page_info_t *page_info)
+static void ibd_buffer_page_get_underuse_info(
+		const buf_page_t *bpage, 
+		ulint pool_id, 
+		ulint pos, 
+		buf_page_info_t *page_info)
 {
 	BPageMutex *mutex = buf_page_get_mutex(bpage);
 	page_info->access_time = bpage->access_time;	
@@ -78,7 +82,10 @@ static void ibd_buffer_page_get_underuse_info(const buf_page_t *bpage, ulint poo
 	mutex_exit(mutex);
 }
 
-static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_pool, const ulint pool_id)
+static int set_ibd_buf_page_info(
+		THD *thd, TABLE_LIST *tables, 
+		buf_pool_t *buf_pool, 
+		const ulint pool_id)
 {
 	int status = 0;
 	buf_page_info_t info_buffer;
@@ -89,14 +96,6 @@ static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_p
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	
 	lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
-	
-	// need refactoring
-	//info_buffer = (buf_page_info_t *)my_malloc(PSI_INSTRUMENT_ME, sizeof(info_buffer), MYF(MY_WME));
-	//if (!info_buffer) {
-	//	return 1;
-	//}
-
-	memset(&info_buffer, 0, sizeof(info_buffer));
 	
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 	int counter = 0;
@@ -129,15 +128,15 @@ static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_p
 		status = 1;
 
 	mutex_exit(&buf_pool->LRU_list_mutex);
-	//my_free(info_buffer);
 
 	return status;
 }
 
-static int ibd_buf_page_underuse_fill_table(THD *thd, TABLE_LIST *tables, Item *cond)
+static int ibd_buf_page_underuse_fill_table(
+		THD *thd, 
+		TABLE_LIST *tables, 
+		Item *cond)
 {
-	TABLE *table = tables->table;
-	
 	int status = 0;
 
 	for (ulint pool_id = 0; pool_id < srv_buf_pool_instances; pool_id++) {
