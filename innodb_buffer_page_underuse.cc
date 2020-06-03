@@ -28,7 +28,7 @@ static ST_FIELD_INFO ibd_buf_page_underuse_fields[] =
 struct buf_page_info_t {
 	unsigned int pool_id : 32;
 	unsigned int space_id : 32;
-	unsigned int page_type : PAGE_TYPE_BITS;
+	unsigned int page_type;
 	unsigned int num_recs : UNIV_PAGE_SIZE_SHIFT_MAX;
 	unsigned int access_time;
 };
@@ -60,7 +60,7 @@ static void ibd_buffer_page_get_underuse_info(const buf_page_t *bpage, ulint poo
 		}
 
 		page_type = fil_page_get_type(&frame);
-
+		page_info->page_type = page_type;
 	} else {
 		page_info->page_type = PAGE_TYPE_UNKNOWN;
 	}
@@ -94,6 +94,9 @@ static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_p
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
 		if (counter > 20)
 			break;
+
+		if (bpage->old == 0 || bpage->oldest_modification != 0)
+			continue;
 
 		counter++;
 		
