@@ -82,6 +82,19 @@ static void ibd_buffer_page_get_underuse_info(
 	mutex_exit(mutex);
 }
 
+static int set_i_s_tables(THD *thd, TABLE *table, buf_page_info_t *info_page)
+{
+	table->field[0]->store(info_page->pool_id);
+	table->field[1]->store(info_page->space_id);
+	table->field[2]->store(info_page->page_type);
+	table->field[3]->store(info_page->access_time);
+	
+	if (schema_table_store_record(thd, table))
+		return 1;
+
+	return 0;
+}
+
 static int set_ibd_buf_page_info(
 		THD *thd, TABLE_LIST *tables, 
 		buf_pool_t *buf_pool, 
@@ -99,28 +112,25 @@ static int set_ibd_buf_page_info(
 	
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 	int counter = 0;
-	while(bpage != NULL) {
+	while(bpage != NULL || bpage->old != 0) {
 		
-		bpage = UT_LIST_GET_PREV(LRU, bpage);
-		if (counter > 20)
+		if (bpage->oldest_modification != 0) {
+			bpage = UT_LIST_GET_PREV(LRU, bpage);
+			continue;
+		}
+
+		if (bpage->old == 0)
 			break;
 
-		if (bpage->old == 0 || bpage->oldest_modification != 0)
-			continue;
-
-		counter++;
-		
 		memset(&info_buffer, 0, sizeof(info_buffer));
 		ibd_buffer_page_get_underuse_info(bpage, pool_id, lru_pos, &info_buffer);	
 		char str[126];
 		sprintf(str, "Name %d", counter);
 		
-		tables->table->field[0]->store(info_buffer.pool_id);
-		tables->table->field[1]->store(info_buffer.space_id);
-		tables->table->field[2]->store(info_buffer.page_type);
-		tables->table->field[3]->store(info_buffer.access_time);
 		lru_pos++;
-		if (schema_table_store_record(thd, tables->table))
+
+		bpage = UT_LIST_GET_PREV(LRU, bpage);
+		if (set_i_s_tables(thd, tables->table, &info_buffer))
 			continue;
 	}
 
