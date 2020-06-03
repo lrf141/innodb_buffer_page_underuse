@@ -18,7 +18,9 @@ static struct st_mysql_information_schema ibd_buf_page_underuse =
 
 static ST_FIELD_INFO ibd_buf_page_underuse_fields[] = 
 	{
-		{"NAME", 10, MYSQL_TYPE_STRING, 0, 0, 0, 0},
+		{"POOL ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
+		{"SPACE ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
+		{"PAGE TYPE", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{"TIMESTAMP", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0} // end of field definition
 	};
@@ -36,11 +38,11 @@ static void ibd_buffer_page_get_underuse_info(const buf_page_t *bpage, ulint poo
 	BPageMutex *mutex = buf_page_get_mutex(bpage);
 	page_info->access_time = bpage->access_time;	
 	page_info->pool_id = pool_id;
-/*
+
 	mutex_enter(mutex);
 
 	if (buf_page_in_file(bpage)) {
-		const byte *frame;
+		byte frame;
 		ulint page_type;
 
 		page_info->space_id = bpage->id.space();
@@ -57,13 +59,12 @@ static void ibd_buffer_page_get_underuse_info(const buf_page_t *bpage, ulint poo
 				return;	
 		}
 
-		page_type = fil_page_get_type(frame);
+		page_type = fil_page_get_type(&frame);
 
 	} else {
 		page_info->page_type = PAGE_TYPE_UNKNOWN;
 	}
 	mutex_exit(mutex);
-*/
 }
 
 static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_pool, const ulint pool_id)
@@ -91,24 +92,25 @@ static int set_ibd_buf_page_info(THD *thd, TABLE_LIST *tables, buf_pool_t *buf_p
 	while(bpage != NULL) {
 		
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
-		counter++;
-		if (counter > 10)
+		if (counter > 20)
 			break;
+
+		counter++;
 		
 		memset(&info_buffer, 0, sizeof(info_buffer));
 		ibd_buffer_page_get_underuse_info(bpage, pool_id, lru_pos, &info_buffer);	
 		char str[126];
 		sprintf(str, "Name %d", counter);
 		
-		tables->table->field[0]->store(str, strlen(str), system_charset_info);
-		tables->table->field[1]->store(info_buffer.access_time);
+		tables->table->field[0]->store(info_buffer.pool_id);
+		tables->table->field[1]->store(info_buffer.space_id);
+		tables->table->field[2]->store(info_buffer.page_type);
+		tables->table->field[3]->store(info_buffer.access_time);
 		lru_pos++;
 		if (schema_table_store_record(thd, tables->table))
 			continue;
 	}
 
-	tables->table->field[0]->store("total size", 6, system_charset_info);
-	tables->table->field[1]->store(lru_len);
 	if (schema_table_store_record(thd, tables->table))
 		status = 1;
 
