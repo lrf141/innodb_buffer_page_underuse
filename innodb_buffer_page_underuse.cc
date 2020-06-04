@@ -12,6 +12,51 @@
 
 constexpr auto PAGE_TYPE_BITS = 6;
 constexpr auto PAGE_TYPE_UNKNOWN = FIL_PAGE_TYPE_UNKNOWN;
+constexpr auto PAGE_TYPE_RTREE = (FIL_PAGE_TYPE_LAST + 1);
+constexpr auto PAGE_TYPE_IBUF = (FIL_PAGE_TYPE_LAST + 2);
+constexpr auto PAGE_TYPE_SDI = (FIL_PAGE_TYPE_LAST + 3);
+constexpr auto PAGE_TYPE_LAST = PAGE_TYPE_SDI;
+
+struct buf_page_desc_t {
+	const char *type_str;
+	ulint type_value;
+};
+
+static buf_page_desc_t i_s_page_type[] = {
+	{"ALLOCATED", FIL_PAGE_TYPE_ALLOCATED},
+    	{"INDEX", FIL_PAGE_INDEX},
+    	{"UNDO_LOG", FIL_PAGE_UNDO_LOG},
+    	{"INODE", FIL_PAGE_INODE},
+    	{"IBUF_FREE_LIST", FIL_PAGE_IBUF_FREE_LIST},
+    	{"IBUF_BITMAP", FIL_PAGE_IBUF_BITMAP},
+    	{"SYSTEM", FIL_PAGE_TYPE_SYS},
+    	{"TRX_SYSTEM", FIL_PAGE_TYPE_TRX_SYS},
+    	{"FILE_SPACE_HEADER", FIL_PAGE_TYPE_FSP_HDR},
+    	{"EXTENT_DESCRIPTOR", FIL_PAGE_TYPE_XDES},
+    	{"BLOB", FIL_PAGE_TYPE_BLOB},
+    	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
+    	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
+    	{"UNKNOWN", PAGE_TYPE_UNKNOWN},
+    	{"PAGE_IO_COMPRESSED", FIL_PAGE_COMPRESSED},
+    	{"PAGE_IO_ENCRYPTED", FIL_PAGE_ENCRYPTED},
+    	{"PAGE_IO_COMPRESSED_ENCRYPTED", FIL_PAGE_COMPRESSED_AND_ENCRYPTED},
+    	{"ENCRYPTED_RTREE", FIL_PAGE_ENCRYPTED_RTREE},
+    	{"SDI_BLOB", FIL_PAGE_SDI_BLOB},
+    	{"SDI_COMPRESSED_BLOB", FIL_PAGE_SDI_ZBLOB},
+    	{"FIL_PAGE_TYPE_UNUSED", FIL_PAGE_TYPE_UNUSED},
+    	{"RSEG_ARRAY", FIL_PAGE_TYPE_RSEG_ARRAY},
+    	{"LOB_INDEX", FIL_PAGE_TYPE_LOB_INDEX},
+    	{"LOB_DATA", FIL_PAGE_TYPE_LOB_DATA},
+    	{"LOB_FIRST", FIL_PAGE_TYPE_LOB_FIRST},
+    	{"ZLOB_FIRST", FIL_PAGE_TYPE_ZLOB_FIRST},
+    	{"ZLOB_DATA", FIL_PAGE_TYPE_ZLOB_DATA},
+    	{"ZLOB_INDEX", FIL_PAGE_TYPE_ZLOB_INDEX},
+    	{"ZLOB_FRAG", FIL_PAGE_TYPE_ZLOB_FRAG},
+    	{"ZLOB_FRAG_ENTRY", FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY},
+    	{"RTREE_INDEX", PAGE_TYPE_RTREE},
+    	{"IBUF_INDEX", PAGE_TYPE_IBUF},
+    	{"SDI_INDEX", PAGE_TYPE_SDI}
+};
 
 static struct st_mysql_information_schema ibd_buf_page_underuse =
 	{ MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
@@ -20,7 +65,7 @@ static ST_FIELD_INFO ibd_buf_page_underuse_fields[] =
 	{
 		{"POOL ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{"SPACE ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
-		{"PAGE TYPE", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
+		{"PAGE TYPE", 10, MYSQL_TYPE_STRING, 0, 0, 0, 0},
 		{"TIMESTAMP", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0} // end of field definition
 	};
@@ -29,7 +74,6 @@ struct buf_page_info_t {
 	unsigned int pool_id : 32;
 	unsigned int space_id : 32;
 	unsigned int page_type : PAGE_TYPE_BITS;
-	unsigned int num_recs : UNIV_PAGE_SIZE_SHIFT_MAX;
 	unsigned int access_time;
 };
 
@@ -75,6 +119,7 @@ static void ibd_buffer_page_get_underuse_info(
 
 		page_type = fil_page_get_type(frame);
 		page_info->page_type = page_type;
+	
 	} else {
 		page_info->page_type = PAGE_TYPE_UNKNOWN;
 	}
@@ -85,7 +130,16 @@ static int set_i_s_tables(THD *thd, TABLE *table, buf_page_info_t *info_page)
 {
 	table->field[0]->store(info_page->pool_id);
 	table->field[1]->store(info_page->space_id);
-	table->field[2]->store(info_page->page_type);
+	//table->field[2]->store(info_page->page_type);
+	for (int i = 0; i < sizeof i_s_page_type / sizeof i_s_page_type[0]; i++) {
+		if (info_page->page_type == i_s_page_type[i].type_value) {
+			table->field[2]->store(
+					i_s_page_type[i].type_str, 
+					strlen(i_s_page_type[i].type_str),
+					system_charset_info);
+			break;
+		}
+	}
 	table->field[3]->store(info_page->access_time);
 	
 	if (schema_table_store_record(thd, table))
