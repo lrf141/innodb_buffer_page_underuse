@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 #include <mysql/plugin.h>
 #include "sql/sql_class.h"
 #include "sql/table.h"
@@ -16,6 +17,8 @@ constexpr auto PAGE_TYPE_RTREE = (FIL_PAGE_TYPE_LAST + 1);
 constexpr auto PAGE_TYPE_IBUF = (FIL_PAGE_TYPE_LAST + 2);
 constexpr auto PAGE_TYPE_SDI = (FIL_PAGE_TYPE_LAST + 3);
 constexpr auto PAGE_TYPE_LAST = PAGE_TYPE_SDI;
+
+constexpr auto UINT_LIMIT_VALUE = 4294967295;
 
 struct buf_page_desc_t {
 	const char *type_str;
@@ -66,7 +69,7 @@ static ST_FIELD_INFO ibd_buf_page_underuse_fields[] =
 		{"POOL ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{"SPACE ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{"PAGE TYPE", 28, MYSQL_TYPE_STRING, 0, 0, 0, 0},
-		{"TIMESTAMP", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
+		{"TIMESTAMP", 64, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0} // end of field definition
 	};
 
@@ -126,12 +129,24 @@ static void ibd_buffer_page_get_underuse_info(
 	mutex_exit(mutex);
 }
 
-static int set_i_s_tables(THD *thd, TABLE *table, buf_page_info_t *info_page)
+static ulint convert_to_epoch(unsigned int target, ulint base_epoch)
+{
+	//ulint of_times = (ulint)(base_epoch * 1000 / UINT_LIMIT_VALUE);
+	//return target/1000 + of_times * UINT_LIMIT_VALUE / 1000;
+	ulint result = base_epoch;
+	unsigned int base = ut_time_monotonic_ms();
+	//if (target > ut_time_monotonic_ms()) {
+	//	result -= UINT_LIMIT_VALUE;
+	//}
+	ulint delta = (base - target);
+	return result - delta/1000;
+}
+
+static int set_i_s_tables(THD *thd, TABLE *table, buf_page_info_t *info_page, ulint base_epoch)
 {
 	table->field[0]->store(info_page->pool_id);
 	table->field[1]->store(info_page->space_id);
-	//table->field[2]->store(info_page->page_type);
-	for (int i = 0; i < sizeof i_s_page_type / sizeof i_s_page_type[0]; i++) {
+	for (ulint i = 0; i < sizeof i_s_page_type / sizeof i_s_page_type[0]; i++) {
 		if (info_page->page_type == i_s_page_type[i].type_value) {
 			table->field[2]->store(
 					i_s_page_type[i].type_str, 
@@ -140,7 +155,7 @@ static int set_i_s_tables(THD *thd, TABLE *table, buf_page_info_t *info_page)
 			break;
 		}
 	}
-	table->field[3]->store(info_page->access_time);
+	table->field[3]->store(convert_to_epoch(info_page->access_time, base_epoch));
 	
 	if (schema_table_store_record(thd, table))
 		return 1;
@@ -151,7 +166,8 @@ static int set_i_s_tables(THD *thd, TABLE *table, buf_page_info_t *info_page)
 static int set_ibd_buf_page_info(
 		THD *thd, TABLE_LIST *tables, 
 		buf_pool_t *buf_pool, 
-		const ulint pool_id)
+		const ulint pool_id,
+		const ulint base_time)
 {
 	int status = 0;
 	buf_page_info_t info_buffer;
@@ -176,7 +192,7 @@ static int set_ibd_buf_page_info(
 		memset(&info_buffer, 0, sizeof(info_buffer));
 		ibd_buffer_page_get_underuse_info(bpage, pool_id, &info_buffer);	
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
-		if (set_i_s_tables(thd, tables->table, &info_buffer))
+		if (set_i_s_tables(thd, tables->table, &info_buffer, base_time))
 			continue;
 	}
 
@@ -194,11 +210,12 @@ static int ibd_buf_page_underuse_fill_table(
 		Item *cond)
 {
 	int status = 0;
+	ulint base_time = time(NULL);
 
 	for (ulint pool_id = 0; pool_id < srv_buf_pool_instances; pool_id++) {
 		buf_pool_t* buf_pool;
 		buf_pool = buf_pool_from_array(pool_id);
-		status = set_ibd_buf_page_info(thd, tables, buf_pool, pool_id);
+		status = set_ibd_buf_page_info(thd, tables, buf_pool, pool_id, base_time);
 		if (status)
 			continue;
 	}
