@@ -65,7 +65,7 @@ static ST_FIELD_INFO ibd_buf_page_underuse_fields[] =
 	{
 		{"POOL ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{"SPACE ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
-		{"PAGE TYPE", 10, MYSQL_TYPE_STRING, 0, 0, 0, 0},
+		{"PAGE TYPE", 28, MYSQL_TYPE_STRING, 0, 0, 0, 0},
 		{"TIMESTAMP", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0} // end of field definition
 	};
