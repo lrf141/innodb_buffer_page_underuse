@@ -36,7 +36,6 @@ struct buf_page_info_t {
 static void ibd_buffer_page_get_underuse_info(
 		const buf_page_t *bpage, 
 		ulint pool_id, 
-		ulint pos, 
 		buf_page_info_t *page_info)
 {
 	BPageMutex *mutex = buf_page_get_mutex(bpage);
@@ -103,7 +102,6 @@ static int set_ibd_buf_page_info(
 	int status = 0;
 	buf_page_info_t info_buffer;
 	buf_page_t *bpage;
-	ulint lru_pos = 0;
 	ulint lru_len;
 
 	mutex_enter(&buf_pool->LRU_list_mutex);
@@ -111,7 +109,6 @@ static int set_ibd_buf_page_info(
 	lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 	
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-	int counter = 0;
 	while(bpage != NULL || bpage->old != 0) {
 		
 		if (bpage->oldest_modification != 0) {
@@ -123,12 +120,7 @@ static int set_ibd_buf_page_info(
 			break;
 
 		memset(&info_buffer, 0, sizeof(info_buffer));
-		ibd_buffer_page_get_underuse_info(bpage, pool_id, lru_pos, &info_buffer);	
-		char str[126];
-		sprintf(str, "Name %d", counter);
-		
-		lru_pos++;
-
+		ibd_buffer_page_get_underuse_info(bpage, pool_id, &info_buffer);	
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
 		if (set_i_s_tables(thd, tables->table, &info_buffer))
 			continue;
