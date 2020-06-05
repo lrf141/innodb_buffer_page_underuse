@@ -131,13 +131,8 @@ static void ibd_buffer_page_get_underuse_info(
 
 static ulint convert_to_epoch(unsigned int target, ulint base_epoch)
 {
-	//ulint of_times = (ulint)(base_epoch * 1000 / UINT_LIMIT_VALUE);
-	//return target/1000 + of_times * UINT_LIMIT_VALUE / 1000;
 	ulint result = base_epoch;
 	unsigned int base = ut_time_monotonic_ms();
-	//if (target > ut_time_monotonic_ms()) {
-	//	result -= UINT_LIMIT_VALUE;
-	//}
 	ulint delta = (base - target);
 	return result - delta/1000;
 }
