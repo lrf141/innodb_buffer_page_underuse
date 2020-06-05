@@ -66,9 +66,9 @@ static struct st_mysql_information_schema ibd_buf_page_underuse =
 
 static ST_FIELD_INFO ibd_buf_page_underuse_fields[] = 
 	{
-		{"POOL ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
-		{"SPACE ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
-		{"PAGE TYPE", 28, MYSQL_TYPE_STRING, 0, 0, 0, 0},
+		{"POOL_ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
+		{"SPACE_ID", 6, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
+		{"PAGE_TYPE", 28, MYSQL_TYPE_STRING, 0, 0, 0, 0},
 		{"TIMESTAMP", 64, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
 		{0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0} // end of field definition
 	};
