@@ -2,7 +2,7 @@
 
 INFORMATION_SCHEMA plugin to aggregate unreferenced page information in the InnoDB LRU Cache
 
-# INNODB_BUFFER_PAGE_UNDERUSE
+# INNODB_BUFFER_PAGE_UNDERUSE column desc
 
 ```
 +-----------+--------------+------+-----+---------+-------+
