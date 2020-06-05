@@ -2,6 +2,20 @@
 
 INFORMATION_SCHEMA plugin to aggregate unreferenced page information in the InnoDB LRU Cache
 
+# INNODB_BUFFER_PAGE_UNDERUSE
+
+```
++-----------+--------------+------+-----+---------+-------+
+| Field     | Type         | Null | Key | Default | Extra |
++-----------+--------------+------+-----+---------+-------+
+| POOL_ID   | int unsigned | NO   |     |         |       |
+| SPACE_ID  | int unsigned | NO   |     |         |       |
+| PAGE_TYPE | varchar(28)  | NO   |     |         |       |
+| TIMESTAMP | int unsigned | NO   |     |         |       |
++-----------+--------------+------+-----+---------+-------+
+```
+(TIMESTAMP: unix time (sec))
+
 # How To Build
 Must be built with the target mysql-server.
 
